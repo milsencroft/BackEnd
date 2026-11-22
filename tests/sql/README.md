@@ -20,3 +20,5 @@ Added with migrations 0015-0018:
 - TODO: exercise every transition (shipped -> in_transit -> out_for_delivery -> delivered -> return_requested -> returned, delivery_failed paths) with a captured test order.
 
 Migration 0019 (verified in a rolled-back block as Super Admin): order number matches `MC-ORD-YYYY-NNNNN`; add note -> detail shows the note and customer; search by order number and by phone finds the order; payment filter excludes it; `order_notes` is not readable directly; a non-staff user gets `forbidden`.
+
+Migration 0020 (verified in rolled-back blocks as Super Admin): create and edit a region (new regions start as draft), create a product (draft), catalogue listing shows both, launch creation defaults capacity to 100 and rejects duplicate codes, invalid region code and missing reason are rejected, an active launch cannot have its variants edited (`launch_locked`), setting variants replaces the previous set, and a zero price is rejected.
