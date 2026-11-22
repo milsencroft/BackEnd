@@ -14,3 +14,7 @@ Scenarios covered (re-run them after any change to those functions):
 - GST inclusive tax on 99900 paise = 15239 (CGST 7619 / SGST 7620).
 
 TODO: convert these into committed, automated pgTAP/psql scripts (needs a disposable database; not available in CI yet).
+
+Added with migrations 0015-0018:
+- admin_set_fulfilment has a single overload, the body contains the full transition table, and calling it as the Super Admin with an unknown order returns `not_found` (checked in a rolled-back DO block).
+- TODO: exercise every transition (shipped -> in_transit -> out_for_delivery -> delivered -> return_requested -> returned, delivery_failed paths) with a captured test order.
