@@ -2,8 +2,8 @@
 
 ## Supabase
 - Project: `milsen-croft` (ref `gnnbgewcmheuhdlxhyue`, Mumbai ap-south-1).
-- Migrations live in `supabase/migrations/` and are applied in order (0001 to 0006).
-  Next migration number: 0007 (Society tiers, memberships, orders, payments, outbox).
+- Migrations live in `supabase/migrations/` and are applied in order (0001 to 0009).
+  Next migration number: 0010.
 - Keep this folder and the database in sync: every schema change is a new numbered file.
 
 ## Google sign-in
