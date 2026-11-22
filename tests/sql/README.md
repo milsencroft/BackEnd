@@ -18,3 +18,5 @@ TODO: convert these into committed, automated pgTAP/psql scripts (needs a dispos
 Added with migrations 0015-0018:
 - admin_set_fulfilment has a single overload, the body contains the full transition table, and calling it as the Super Admin with an unknown order returns `not_found` (checked in a rolled-back DO block).
 - TODO: exercise every transition (shipped -> in_transit -> out_for_delivery -> delivered -> return_requested -> returned, delivery_failed paths) with a captured test order.
+
+Migration 0019 (verified in a rolled-back block as Super Admin): order number matches `MC-ORD-YYYY-NNNNN`; add note -> detail shows the note and customer; search by order number and by phone finds the order; payment filter excludes it; `order_notes` is not readable directly; a non-staff user gets `forbidden`.
