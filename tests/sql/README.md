@@ -33,3 +33,5 @@ Migration 0023 (rolled-back blocks, cap of tier 2 set to 1 for the test): trigge
 Migration 0024 (rolled-back block as Super Admin, fake storage object): alt text under 3 characters, a bad path and a missing file are rejected; register, assign to a product, unknown media rejected; changing alt text propagates to the product's images; a media file in use cannot be deleted; delete returns the storage path for removal.
 
 Migration 0025 (rolled-back block as Super Admin, fake paid launch order in processing): checklist lists the order line, seal, invoice and Society items; marking Packed is blocked until all are ticked; unticking one blocks again; an unknown item is rejected; once Packed the checklist is locked.
+
+Migration 0026 (rolled-back block as Super Admin, fake storage objects): bad video path, non-YouTube/Vimeo link and short description rejected; video and YouTube link register (link normalised to youtube-nocookie); placing in a slot works, unknown slot rejected; placed media cannot be deleted; a video cannot be used as a product image; anonymous users can read the placed media; delete returns both the video and poster files.
