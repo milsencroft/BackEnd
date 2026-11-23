@@ -121,3 +121,22 @@ describe("misc", () => {
     expect(res.status).toBe(500); expect(await res.json()).toEqual({ error: "internal_error" });
   });
 });
+
+describe("rate limiting", () => {
+  it("answers 429 when the database says the customer is over the limit, and never reaches payment", async () => {
+    const { store, razorpay, post } = setup();
+    store.results["rate_limit_hit"] = false;
+    const r = await post("/checkout/launch", { launch_code: "KJ", sku: "MC-KER-001-50ML", address: ADDRESS }, { authorization: "Bearer good" });
+    expect(r.status).toBe(429);
+    expect(razorpay.orders).toHaveLength(0);
+    expect(store.called("begin_launch_checkout")).toHaveLength(0);
+  });
+  it("keeps checkout available if the limiter errors", async () => {
+    const { store, post } = setup();
+    store.failures["rate_limit_hit"] = "boom";
+    store.results["begin_launch_checkout"] = [{ r_result: "closed", r_order_id: null, r_order_number: null, r_total_paise: null }];
+    const r = await post("/checkout/launch", { launch_code: "KJ", sku: "MC-KER-001-50ML", address: ADDRESS }, { authorization: "Bearer good" });
+    expect(r.status).toBe(409);
+    expect(store.called("begin_launch_checkout")).toHaveLength(1);
+  });
+});

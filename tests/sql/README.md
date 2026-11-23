@@ -41,3 +41,5 @@ Migration 0027 (rolled-back block as Super Admin): courier link templates must b
 Migration 0028 (rolled-back block): claim takes due messages once and never twice; failures back off and fail visibly after 5 attempts; sent is not delivered until a receipt marks it; admin overview counts; retry only for failed messages and needs a reason; cancel works; authenticated users cannot call the sender functions.
 
 Migration 0029 (rolled-back block): a bad range is rejected; with two paid orders (one with a coupon, one repeat customer), one unpaid order and one refund, gross rises by exactly the paid totals, refunds, repeat customers, coupons and top products show up; anonymous users cannot call it. Applied live as 0029 plus a one-line ORDER BY fix; the repo file holds the final version.
+
+Migration 0030 (rolled-back block): limiter allows N hits per window then blocks, keys are independent, anonymous users cannot call it; newsletter rejects bad emails, treats repeat and differently-cased emails as one row, limits 3 per email per day, anonymous users cannot list subscribers; staff can list and unsubscribe with a reason.
