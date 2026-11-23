@@ -137,8 +137,9 @@ export function createApp(d: Deps) {
     const l = lineArgs(b); const qty = b?.qty;
     if (!l || typeof qty !== "number" || !Number.isInteger(qty) || qty < 1 || qty > 5) return c.json({ error: "invalid_request" }, 400);
     const res = await d.store.rpc<string>("cart_add", { p_customer: o.customer, p_guest: o.guest, ...l, p_qty: qty });
-    if (res !== "ok") return c.json({ error: res }, res === "launch_only" || res === "cart_full" ? 409 : 400);
-    return c.json(await view(o));
+    if (res !== "ok" && res !== "capped") return c.json({ error: res }, res === "launch_only" || res === "cart_full" || res === "out_of_stock" ? 409 : 400);
+    // "capped": the database added only what is available. The view shows the real quantity.
+    return c.json({ ...(await view(o)), capped: res === "capped" });
   });
   app.patch("/cart/items", async (c) => {
     const o = await cartOwner(c); if (!o) return c.json({ error: "unauthorized" }, 401);
@@ -146,8 +147,8 @@ export function createApp(d: Deps) {
     const l = lineArgs(b); const qty = b?.qty;
     if (!l || typeof qty !== "number" || !Number.isInteger(qty) || qty < 1 || qty > 5) return c.json({ error: "invalid_request" }, 400);
     const res = await d.store.rpc<string>("cart_set_qty", { p_customer: o.customer, p_guest: o.guest, ...l, p_qty: qty });
-    if (res !== "ok") return c.json({ error: res }, res === "not_found" ? 404 : 400);
-    return c.json(await view(o));
+    if (res !== "ok" && res !== "capped") return c.json({ error: res }, res === "not_found" ? 404 : res === "out_of_stock" ? 409 : 400);
+    return c.json({ ...(await view(o)), capped: res === "capped" });
   });
   app.delete("/cart/items", async (c) => {
     const o = await cartOwner(c); if (!o) return c.json({ error: "unauthorized" }, 401);
