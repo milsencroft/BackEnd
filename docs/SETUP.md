@@ -2,8 +2,8 @@
 
 ## Supabase
 - Project: `milsen-croft` (ref `gnnbgewcmheuhdlxhyue`, Mumbai ap-south-1).
-- Migrations live in `supabase/migrations/` and are applied in order (0001 to 0014).
-  Next migration number: 0015.
+- Migrations live in `supabase/migrations/` and are applied in order (0001 to 0031).
+  Next migration number: 0032.
 - Keep this folder and the database in sync: every schema change is a new numbered file.
 
 ## Google sign-in
@@ -48,3 +48,12 @@
 ## Not built yet
 - Notification sender worker (email needs a verified domain/provider; WhatsApp stays manual-approval). The queue, retry/backoff and admin screen exist; `outbox_claim`, `outbox_mark_sent`, `outbox_mark_failed` and `outbox_mark_delivered` (service role only) are ready for the worker to call.
 - Automated SQL scenario tests (see `tests/sql/README.md`).
+
+## Added since launch engine
+- Rate limiting: `rate_limit_hit` (service role only); checkout allows 10 attempts per customer per minute and
+  fails open if the limiter errors. Newsletter signups are limited per email and overall.
+- Newsletter: `newsletter_subscribe` (public), staff list and unsubscribe need `newsletter.manage`.
+- Content editor: `site_pages` (draft, published, archived). Public readers return published pages only.
+  Staff need `content.manage`. Legal pages show a neutral notice until policy text is published.
+- SQL tests: `tests/sql/run.sh` with `DATABASE_URL` set to a throwaway database. Currently covers migrations
+  0030 and 0031; the earlier scenarios are described in `tests/sql/README.md` and still to be converted.
