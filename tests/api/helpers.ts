@@ -21,6 +21,15 @@ export class FakeStore implements Store {
     if (this.failures[fn]) throw new DbError(this.failures[fn]);
     return (this.results[fn] ?? []) as T;
   }
+  as: { token: string | null; fn: string; args: Record<string, unknown> }[] = [];
+  removed: string[][] = [];
+  async callAs<T>(token: string | null, fn: string, args: Record<string, unknown>): Promise<T> {
+    this.as.push({ token, fn, args });
+    if (this.failures[fn]) throw new DbError(this.failures[fn]);
+    return (this.results[fn] ?? null) as T;
+  }
+  async signedUpload(path: string) { return { signed_url: "https://signed.example/x", token: "t", path }; }
+  async removeMedia(paths: string[]) { this.removed.push(paths); }
   async paymentForOrder() { return this.payment; }
   async refundsForPayment() { return this.refunds; }
   async audit(e: unknown) { this.audits.push(e); }

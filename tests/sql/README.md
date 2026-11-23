@@ -47,3 +47,5 @@ Migration 0030 (rolled-back block): limiter allows N hits per window then blocks
 Migration 0031 (rolled-back block): drafts and archived pages are invisible to public_page/public_pages, published ones appear; anonymous users cannot list admin pages; bad slugs and missing reasons are rejected; saves and status changes are audited.
 
 Migration 0032 (rolled-back block, file tests/sql/0032_coupon_rules.sql): discount cap applies; product-restricted coupon discounts only eligible lines and rejects carts with none; per-customer limit blocks a second use; tier-restricted coupon rejects non-members; rules editor validates tiers. Coupon stacking stays off (one code per order).
+- 0033_cart.sql: server cart (add cap, invalid item, guest merge). Verified live, rolled back.
+- 0034_inventory.sql: set/add stock, reason, floor. Verified live, rolled back.

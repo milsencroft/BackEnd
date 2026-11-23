@@ -20,6 +20,11 @@ export interface Store {
   permissions(token: string): Promise<string[]>;
   /** Calls a service-role-only SQL function. Throws DbError(message) with the SQL exception text. */
   rpc<T = unknown>(fn: string, args: Record<string, unknown>): Promise<T>;
+  /** Calls a SQL function as the caller: anon when token is null, otherwise with the user's JWT so RLS and _require() apply. */
+  callAs<T = unknown>(token: string | null, fn: string, args: Record<string, unknown>): Promise<T>;
+  /** Signed upload URL / delete for the product-media bucket. Callers must already be authorised. */
+  signedUpload(path: string): Promise<{ signed_url: string; token: string; path: string }>;
+  removeMedia(paths: string[]): Promise<void>;
   paymentForOrder(orderId: string): Promise<PaymentRow | null>;
   refundsForPayment(paymentId: string): Promise<{ status: string; amount_paise: number }[]>;
   audit(entry: { actor: string | null; action: string; entityType: string; entityId: string; reason: string | null; after?: unknown }): Promise<void>;

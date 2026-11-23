@@ -45,5 +45,5 @@ export const isCode = (v: unknown): v is string => typeof v === "string" && /^[A
 /** SQL exception text -> HTTP status. Anything not listed is an internal error. */
 export const KNOWN_ERRORS: Record<string, number> = {
   invalid_address: 400, invalid_items: 400, invalid_item: 400, invalid_coupon: 400,
-  launch_only: 409, out_of_stock: 409,
+  launch_only: 409, out_of_stock: 409, empty_cart: 400,
 };
