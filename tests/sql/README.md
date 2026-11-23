@@ -27,3 +27,5 @@ Migration 0021 (rolled-back block as Super Admin): custom code created; 25 rando
 Not yet implemented (needs a checkout change, after the payment test): per-customer limit, maximum discount, Society-tier/product/collection applicability, stacking rules.
 
 Migration 0022 (rolled-back block as a customer): first address becomes default; bad pincode rejected; wishlist toggle adds then removes; unknown or unpublished product rejected; address delete works.
+
+Migration 0023 (rolled-back blocks, cap of tier 2 set to 1 for the test): trigger promotes a returning member one tier and renumbers (MS-TB-T2-001); a full next tier queues the member and keeps the current tier; cycle rejects active and cancelled launches, a missing reason and a second run; one missed launch only counts; two in a row end Tier 1 membership and add the customer to the Tier 1 re-entry list; a Tier 2 member moves down to Tier 1 and the queued member advances; a lapsed customer buying again is waitlisted, not re-admitted; admin admit issues a new number; history keeps old numbers; grant_membership still grants and returns existing.
