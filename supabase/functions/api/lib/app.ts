@@ -11,7 +11,21 @@ const BEGIN_STATUS: Record<string, number> = { not_found: 404, closed: 409, no_r
 export function createApp(d: Deps) {
   const log = d.log ?? (() => {});
   const app = new Hono().basePath("/api");
-  app.use("*", cors({ origin: d.allowedOrigin ?? "*", allowHeaders: ["authorization", "content-type", "x-cart-token", "apikey"], allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"] }));
+  // ALLOWED_ORIGIN may be a comma-separated list; "*" (default) is for development only.
+  const origins = (d.allowedOrigin ?? "*").split(",").map((o) => o.trim()).filter(Boolean);
+  app.use("*", cors({ origin: origins.includes("*") ? "*" : (o) => (origins.includes(o) ? o : null), allowHeaders: ["authorization", "content-type", "x-cart-token", "apikey"], allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"] }));
+
+  // Refuse oversized bodies before parsing anything (64 KB is far above any real request).
+  const MAX_BODY = 64 * 1024;
+  app.use("*", async (c, next) => {
+    if (c.req.method === "GET" || c.req.method === "OPTIONS") return next();
+    const declared = Number(c.req.header("content-length") ?? "0");
+    if (declared > MAX_BODY) return c.json({ error: "payload_too_large" }, 413);
+    if (c.req.path.endsWith("/webhooks/razorpay")) return next();
+    const text = await c.req.raw.clone().text().catch(() => "");
+    if (text.length > MAX_BODY) return c.json({ error: "payload_too_large" }, 413);
+    return next();
+  });
 
   app.onError((err, c) => {
     if (err instanceof DbError && err.message in KNOWN_ERRORS) return c.json({ error: err.message }, KNOWN_ERRORS[err.message] as 400);
@@ -66,10 +80,12 @@ export function createApp(d: Deps) {
   const bearer = (h: string | undefined) => (h?.startsWith("Bearer ") ? h.slice(7).trim() : "");
 
   // ---- Database gateway: the browser never talks to the database. Allowlisted functions only; the database enforces permissions. ----
+  const clientIp = (h: (n: string) => string | undefined) => (h("cf-connecting-ip") ?? h("x-forwarded-for")?.split(",")[0] ?? "unknown").trim().slice(0, 64);
   app.post("/rpc/:fn", async (c) => {
     const fn = c.req.param("fn");
     const kind = kindOf(fn);
     if (!kind) return c.json({ error: "not_found" }, 404);
+    if (!(await withinLimit(`rpc:${clientIp((n) => c.req.header(n))}`, 240, 60))) return c.json({ error: "rate_limited" }, 429);
     const body = await c.req.json().catch(() => ({})) as unknown;
     if (!body || typeof body !== "object" || Array.isArray(body)) return c.json({ error: "invalid_request" }, 400);
     let token: string | null = null;
@@ -130,6 +146,11 @@ export function createApp(d: Deps) {
   app.get("/cart", async (c) => {
     const o = await cartOwner(c); if (!o) return c.json({ error: "unauthorized" }, 401);
     return c.json(await view(o));
+  });
+  app.use("/cart/*", async (c, next) => {
+    if (c.req.method === "GET") return next();
+    if (!(await withinLimit(`cart:${clientIp((n) => c.req.header(n))}`, 120, 60))) return c.json({ error: "rate_limited" }, 429);
+    return next();
   });
   app.post("/cart/items", async (c) => {
     const o = await cartOwner(c); if (!o) return c.json({ error: "unauthorized" }, 401);

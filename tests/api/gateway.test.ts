@@ -101,7 +101,7 @@ describe("cart routes", () => {
     for (const b of [{ qty: 1 }, { sku: "MC-KER-001-50ML", bundle: "MC-DUO-001", qty: 1 }, { sku: "MC-KER-001-50ML", qty: 0 }, { sku: "MC-KER-001-50ML", qty: 6 }, { sku: "bad sku!", qty: 1 }]) {
       expect((await t.post("/cart/items", b, guest)).status).toBe(400);
     }
-    expect(t.store.calls).toHaveLength(0);
+    expect(t.store.calls.filter((x: { fn: string }) => x.fn !== "rate_limit_hit")).toHaveLength(0);
   });
 
   it("merges the visitor cart into the account cart after sign-in", async () => {
@@ -109,5 +109,18 @@ describe("cart routes", () => {
     expect((await t.post("/cart/merge", {}, guest)).status).toBe(401);
     await t.post("/cart/merge", {}, { ...auth, ...guest });
     expect(t.store.called("cart_merge")[0].args).toEqual({ p_customer: "cust-1", p_guest: "g".repeat(40) });
+  });
+});
+
+describe("abuse protection", () => {
+  it("refuses oversized bodies", async () => {
+    const t = setup();
+    const res = await t.post("/rpc/shop_catalogue", { pad: "x".repeat(70_000) });
+    expect(res.status).toBe(413);
+  });
+  it("answers 429 when a client floods the gateway or the cart", async () => {
+    const t = setup(); t.store.results["rate_limit_hit"] = false;
+    expect((await t.post("/rpc/shop_catalogue", {})).status).toBe(429);
+    expect((await t.post("/cart/items", { sku: "MC-KER-001-50ML", qty: 1 }, { "x-cart-token": "a".repeat(40) })).status).toBe(429);
   });
 });
