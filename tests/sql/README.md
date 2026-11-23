@@ -37,3 +37,5 @@ Migration 0025 (rolled-back block as Super Admin, fake paid launch order in proc
 Migration 0026 (rolled-back block as Super Admin, fake storage objects): bad video path, non-YouTube/Vimeo link and short description rejected; video and YouTube link register (link normalised to youtube-nocookie); placing in a slot works, unknown slot rejected; placed media cannot be deleted; a video cannot be used as a product image; anonymous users can read the placed media; delete returns both the video and poster files.
 
 Migration 0027 (rolled-back block as Super Admin): courier link templates must be https and contain {tracking}; reason required; saving and listing couriers; logging a prepared update accepts whatsapp/copy/email only and shows in the order's update list.
+
+Migration 0028 (rolled-back block): claim takes due messages once and never twice; failures back off and fail visibly after 5 attempts; sent is not delivered until a receipt marks it; admin overview counts; retry only for failed messages and needs a reason; cancel works; authenticated users cannot call the sender functions.
