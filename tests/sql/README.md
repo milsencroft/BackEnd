@@ -39,3 +39,5 @@ Migration 0026 (rolled-back block as Super Admin, fake storage objects): bad vid
 Migration 0027 (rolled-back block as Super Admin): courier link templates must be https and contain {tracking}; reason required; saving and listing couriers; logging a prepared update accepts whatsapp/copy/email only and shows in the order's update list.
 
 Migration 0028 (rolled-back block): claim takes due messages once and never twice; failures back off and fail visibly after 5 attempts; sent is not delivered until a receipt marks it; admin overview counts; retry only for failed messages and needs a reason; cancel works; authenticated users cannot call the sender functions.
+
+Migration 0029 (rolled-back block): a bad range is rejected; with two paid orders (one with a coupon, one repeat customer), one unpaid order and one refund, gross rises by exactly the paid totals, refunds, repeat customers, coupons and top products show up; anonymous users cannot call it. Applied live as 0029 plus a one-line ORDER BY fix; the repo file holds the final version.
