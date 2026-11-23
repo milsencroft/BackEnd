@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { DbError, type Deps } from "./types.ts";
 import { verifyWebhookSignature } from "./signature.ts";
-import { isCode, KNOWN_ERRORS, parseAddress, parseRetailItems } from "./validate.ts";
+import { isCode, KNOWN_ERRORS, parseAddress } from "./validate.ts";
+import { kindOf, safeErrorCode } from "./gateway.ts";
 
 type BeginRow = { r_result: string; r_order_id: string | null; r_order_number: string | null; r_total_paise: number | null };
 const BEGIN_STATUS: Record<string, number> = { not_found: 404, closed: 409, no_reservation: 409, invalid_item: 400 };
@@ -10,10 +11,11 @@ const BEGIN_STATUS: Record<string, number> = { not_found: 404, closed: 409, no_r
 export function createApp(d: Deps) {
   const log = d.log ?? (() => {});
   const app = new Hono().basePath("/api");
-  app.use("*", cors({ origin: d.allowedOrigin ?? "*", allowHeaders: ["authorization", "content-type"], allowMethods: ["GET", "POST", "OPTIONS"] }));
+  app.use("*", cors({ origin: d.allowedOrigin ?? "*", allowHeaders: ["authorization", "content-type", "x-cart-token", "apikey"], allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"] }));
 
   app.onError((err, c) => {
     if (err instanceof DbError && err.message in KNOWN_ERRORS) return c.json({ error: err.message }, KNOWN_ERRORS[err.message] as 400);
+    if (err instanceof DbError && safeErrorCode(err.message)) return c.json({ error: err.message }, 400);
     log("unhandled", { message: err.message });
     return c.json({ error: "internal_error" }, 500);
   });
@@ -60,6 +62,114 @@ export function createApp(d: Deps) {
     };
   }
 
+
+  const bearer = (h: string | undefined) => (h?.startsWith("Bearer ") ? h.slice(7).trim() : "");
+
+  // ---- Database gateway: the browser never talks to the database. Allowlisted functions only; the database enforces permissions. ----
+  app.post("/rpc/:fn", async (c) => {
+    const fn = c.req.param("fn");
+    const kind = kindOf(fn);
+    if (!kind) return c.json({ error: "not_found" }, 404);
+    const body = await c.req.json().catch(() => ({})) as unknown;
+    if (!body || typeof body !== "object" || Array.isArray(body)) return c.json({ error: "invalid_request" }, 400);
+    let token: string | null = null;
+    if (kind !== "public") {
+      const me = await signedIn(c.req.header("authorization"));
+      if (!me) {
+        // Not signed in yet: these two are asked on every page load, so answer them quietly.
+        if (fn === "my_permissions") return c.json([]);
+        if (fn === "my_role") return c.json(null);
+        return c.json({ error: "unauthorized" }, 401);
+      }
+      token = me.token;
+    }
+    const result = await d.store.callAs<any>(token, fn, body as Record<string, unknown>);
+    if (fn === "admin_delete_media" && Array.isArray(result)) {
+      const paths = result.filter((p): p is string => typeof p === "string");
+      if (paths.length) await d.store.removeMedia(paths).catch((e) => log("media_remove_failed", { message: (e as Error).message }));
+    }
+    return c.json({ data: result ?? null });
+  });
+
+  // ---- Signed upload URLs for staff. Path and type are decided here, not by the browser. ----
+  const MEDIA_TYPES: Record<string, { ext: string; folder: string; kind: "image" | "video" }> = {
+    "image/jpeg": { ext: "jpg", folder: "products", kind: "image" }, "image/png": { ext: "png", folder: "products", kind: "image" },
+    "image/webp": { ext: "webp", folder: "products", kind: "image" }, "image/avif": { ext: "avif", folder: "products", kind: "image" },
+    "video/mp4": { ext: "mp4", folder: "videos", kind: "video" }, "video/webm": { ext: "webm", folder: "videos", kind: "video" },
+  };
+  app.post("/admin/media/upload-url", async (c) => {
+    const me = await signedIn(c.req.header("authorization"));
+    if (!me) return c.json({ error: "unauthorized" }, 401);
+    if (!(await d.store.permissions(me.token)).includes("media.manage")) return c.json({ error: "forbidden" }, 403);
+    const body = await c.req.json().catch(() => null) as Record<string, unknown> | null;
+    const spec = typeof body?.content_type === "string" ? MEDIA_TYPES[body.content_type] : undefined;
+    if (!spec) return c.json({ error: "invalid_type" }, 400);
+    const poster = body?.poster === true;
+    if (poster && spec.kind !== "image") return c.json({ error: "invalid_type" }, 400);
+    const path = `${poster ? "posters" : spec.folder}/${crypto.randomUUID()}.${spec.ext}`;
+    return c.json(await d.store.signedUpload(path));
+  });
+
+  // ---- Cart: stored and decided by the database. Signed-in customers use their account; visitors use a random token. ----
+  async function cartOwner(c: { req: { header: (n: string) => string | undefined } }) {
+    const auth = c.req.header("authorization");
+    if (auth) {
+      const me = await signedIn(auth);
+      return me ? { customer: me.customerId as string | null, guest: null as string | null, me } : null;
+    }
+    const g = c.req.header("x-cart-token") ?? "";
+    return /^[A-Za-z0-9_-]{32,80}$/.test(g) ? { customer: null, guest: g, me: null } : null;
+  }
+  const lineArgs = (b: Record<string, unknown> | null) => {
+    const sku = typeof b?.sku === "string" && isCode(b.sku) ? b.sku : null;
+    const bundle = typeof b?.bundle === "string" && isCode(b.bundle) ? b.bundle : null;
+    return (sku === null) === (bundle === null) ? null : { p_sku: sku, p_bundle: bundle };
+  };
+  const view = (o: { customer: string | null; guest: string | null }) => d.store.rpc<Record<string, never>>("cart_view", { p_customer: o.customer, p_guest: o.guest });
+
+  app.get("/cart", async (c) => {
+    const o = await cartOwner(c); if (!o) return c.json({ error: "unauthorized" }, 401);
+    return c.json(await view(o));
+  });
+  app.post("/cart/items", async (c) => {
+    const o = await cartOwner(c); if (!o) return c.json({ error: "unauthorized" }, 401);
+    const b = await c.req.json().catch(() => null) as Record<string, unknown> | null;
+    const l = lineArgs(b); const qty = b?.qty;
+    if (!l || typeof qty !== "number" || !Number.isInteger(qty) || qty < 1 || qty > 5) return c.json({ error: "invalid_request" }, 400);
+    const res = await d.store.rpc<string>("cart_add", { p_customer: o.customer, p_guest: o.guest, ...l, p_qty: qty });
+    if (res !== "ok") return c.json({ error: res }, res === "launch_only" || res === "cart_full" ? 409 : 400);
+    return c.json(await view(o));
+  });
+  app.patch("/cart/items", async (c) => {
+    const o = await cartOwner(c); if (!o) return c.json({ error: "unauthorized" }, 401);
+    const b = await c.req.json().catch(() => null) as Record<string, unknown> | null;
+    const l = lineArgs(b); const qty = b?.qty;
+    if (!l || typeof qty !== "number" || !Number.isInteger(qty) || qty < 1 || qty > 5) return c.json({ error: "invalid_request" }, 400);
+    const res = await d.store.rpc<string>("cart_set_qty", { p_customer: o.customer, p_guest: o.guest, ...l, p_qty: qty });
+    if (res !== "ok") return c.json({ error: res }, res === "not_found" ? 404 : 400);
+    return c.json(await view(o));
+  });
+  app.delete("/cart/items", async (c) => {
+    const o = await cartOwner(c); if (!o) return c.json({ error: "unauthorized" }, 401);
+    const l = lineArgs(await c.req.json().catch(() => null) as Record<string, unknown> | null);
+    if (!l) return c.json({ error: "invalid_request" }, 400);
+    await d.store.rpc("cart_remove", { p_customer: o.customer, p_guest: o.guest, ...l });
+    return c.json(await view(o));
+  });
+  app.delete("/cart", async (c) => {
+    const o = await cartOwner(c); if (!o) return c.json({ error: "unauthorized" }, 401);
+    await d.store.rpc("cart_clear", { p_customer: o.customer, p_guest: o.guest });
+    return c.json(await view(o));
+  });
+  /** After Google sign-in the visitor's cart joins the account cart. */
+  app.post("/cart/merge", async (c) => {
+    const me = await signedIn(c.req.header("authorization"));
+    if (!me) return c.json({ error: "unauthorized" }, 401);
+    const g = c.req.header("x-cart-token") ?? "";
+    if (/^[A-Za-z0-9_-]{32,80}$/.test(g)) await d.store.rpc("cart_merge", { p_customer: me.customerId, p_guest: g });
+    return c.json(await view({ customer: me.customerId, guest: null }));
+  });
+
   const notConfigured = (c: { json: (b: unknown, s: 503) => Response }) => c.json({ error: "payments_not_configured" }, 503);
 
   app.post("/checkout/launch", async (c) => {
@@ -83,10 +193,12 @@ export function createApp(d: Deps) {
     const me = await signedIn(c.req.header("authorization"));
     if (!me) return c.json({ error: "unauthorized" }, 401);
     const body = await c.req.json().catch(() => null) as Record<string, unknown> | null;
-    const items = parseRetailItems(body?.items);
+    // The browser sends no items: the cart stored for this customer is what gets bought.
+    const items = await d.store.rpc<unknown>("cart_items_json", { p_customer: me.customerId });
     const address = parseAddress(body?.address);
     const coupon = typeof body?.coupon === "string" ? body.coupon.trim().slice(0, 30) : null;
-    if (!items || !address) return c.json({ error: "invalid_request" }, 400);
+    if (!address) return c.json({ error: "invalid_request" }, 400);
+    if (!Array.isArray(items) || items.length === 0) return c.json({ error: "empty_cart" }, 400);
     if (!(await withinLimit(`checkout:${me.customerId}`, 10, 60))) return c.json({ error: "rate_limited" }, 429);
     const rows = await d.store.rpc<BeginRow[]>("begin_retail_checkout", {
       p_customer: me.customerId, p_items: items, p_address: address, p_coupon: coupon || null,

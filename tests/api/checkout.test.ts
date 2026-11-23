@@ -53,17 +53,29 @@ describe("POST /checkout/launch", () => {
 });
 
 describe("POST /checkout/retail", () => {
-  it("validates items and quantities", async () => {
+  const cart = [{ sku: "MC-KER-001-50ML", qty: 1 }];
+  it("buys what the server cart holds and ignores any items sent by the browser", async () => {
     const t = setup();
-    for (const items of [[], [{ sku: "MC-KER-001-50ML", qty: 0 }], [{ sku: "MC-KER-001-50ML", qty: 9 }], [{ sku: "MC-KER-001-50ML", bundle: "MC-DUO-001", qty: 1 }], [{ qty: 1 }]]) {
-      expect((await t.post("/checkout/retail", { items, address: ADDRESS }, auth)).status).toBe(400);
-    }
-    expect(t.store.calls).toHaveLength(0);
+    t.store.results.cart_items_json = [{ bundle: "MC-DUO-001", qty: 1 }];
+    t.store.results.begin_retail_checkout = [{ r_result: "ok", r_order_id: "o2", r_order_number: "MC-1002", r_total_paise: 199900 }];
+    const res = await t.post("/checkout/retail", { items: [{ sku: "MC-KER-001-50ML", qty: 5 }], address: ADDRESS }, auth);
+    expect(res.status).toBe(200);
+    expect(t.razorpay.orders).toEqual([{ amountPaise: 199900, receipt: "MC-1002", notes: { order_id: "o2" } }]);
+    expect(t.store.called("begin_retail_checkout")[0].args.p_items).toEqual([{ bundle: "MC-DUO-001", qty: 1 }]);
+  });
+
+  it("refuses an empty cart and a bad address without touching payment", async () => {
+    const t = setup();
+    t.store.results.cart_items_json = [];
+    expect((await t.post("/checkout/retail", { address: ADDRESS }, auth)).status).toBe(400);
+    t.store.results.cart_items_json = cart;
+    expect((await t.post("/checkout/retail", { address: { name: "x" } }, auth)).status).toBe(400);
+    expect(t.store.called("begin_retail_checkout")).toHaveLength(0);
   });
 
   it("maps database refusals (launch-only product, stock, coupon) to clear errors", async () => {
-    const t = setup();
-    const body = { items: [{ sku: "MC-KER-001-50ML", qty: 1 }], address: ADDRESS, coupon: "X" };
+    const t = setup(); t.store.results.cart_items_json = cart;
+    const body = { address: ADDRESS, coupon: "X" };
     t.store.failures.begin_retail_checkout = "launch_only";
     let res = await t.post("/checkout/retail", body, auth);
     expect(res.status).toBe(409); expect(await res.json()).toEqual({ error: "launch_only" });
@@ -71,15 +83,6 @@ describe("POST /checkout/retail", () => {
     expect((await t.post("/checkout/retail", body, auth)).status).toBe(409);
     t.store.failures.begin_retail_checkout = "invalid_coupon";
     expect((await t.post("/checkout/retail", body, auth)).status).toBe(400);
-  });
-
-  it("creates the Razorpay order for the database total (duo pack example)", async () => {
-    const t = setup();
-    t.store.results.begin_retail_checkout = [{ r_result: "ok", r_order_id: "o2", r_order_number: "MC-1002", r_total_paise: 199900 }];
-    const res = await t.post("/checkout/retail", { items: [{ bundle: "MC-DUO-001", qty: 1 }], address: ADDRESS }, auth);
-    expect(res.status).toBe(200);
-    expect(t.razorpay.orders).toEqual([{ amountPaise: 199900, receipt: "MC-1002", notes: { order_id: "o2" } }]);
-    expect(t.store.called("begin_retail_checkout")[0].args.p_items).toEqual([{ bundle: "MC-DUO-001", qty: 1 }]);
   });
 });
 

@@ -23,6 +23,21 @@ export function createStore(url: string, serviceKey: string, anonKey: string): S
       if (error) throw new DbError(error.message);
       return data as T;
     },
+    async callAs<T>(token: string | null, fn: string, args: Record<string, unknown>) {
+      const client = createClient(url, anonKey, { global: token ? { headers: { Authorization: `Bearer ${token}` } } : undefined, auth: { persistSession: false, autoRefreshToken: false } });
+      const { data, error } = await client.rpc(fn, args);
+      if (error) throw new DbError(error.message);
+      return data as T;
+    },
+    async signedUpload(path) {
+      const { data, error } = await admin.storage.from("product-media").createSignedUploadUrl(path);
+      if (error || !data) throw new DbError(error?.message ?? "upload_failed");
+      return { signed_url: data.signedUrl, token: data.token, path: data.path };
+    },
+    async removeMedia(paths) {
+      const { error } = await admin.storage.from("product-media").remove(paths);
+      if (error) throw new DbError(error.message);
+    },
     async paymentForOrder(orderId) {
       const { data } = await admin.from("payments").select("id, razorpay_payment_id, amount_paise, status").eq("order_id", orderId)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
