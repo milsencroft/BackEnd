@@ -25,3 +25,5 @@ Migration 0020 (verified in rolled-back blocks as Super Admin): create and edit 
 
 Migration 0021 (rolled-back block as Super Admin): custom code created; 25 random prefixed codes created and all single-use; duplicate code, percent over 100 and missing reason rejected; deactivating a coupon shows in the list; redemptions empty for an unused coupon.
 Not yet implemented (needs a checkout change, after the payment test): per-customer limit, maximum discount, Society-tier/product/collection applicability, stacking rules.
+
+Migration 0022 (rolled-back block as a customer): first address becomes default; bad pincode rejected; wishlist toggle adds then removes; unknown or unpublished product rejected; address delete works.
