@@ -45,3 +45,5 @@ Migration 0029 (rolled-back block): a bad range is rejected; with two paid order
 Migration 0030 (rolled-back block): limiter allows N hits per window then blocks, keys are independent, anonymous users cannot call it; newsletter rejects bad emails, treats repeat and differently-cased emails as one row, limits 3 per email per day, anonymous users cannot list subscribers; staff can list and unsubscribe with a reason.
 
 Migration 0031 (rolled-back block): drafts and archived pages are invisible to public_page/public_pages, published ones appear; anonymous users cannot list admin pages; bad slugs and missing reasons are rejected; saves and status changes are audited.
+
+Migration 0032 (rolled-back block, file tests/sql/0032_coupon_rules.sql): discount cap applies; product-restricted coupon discounts only eligible lines and rejects carts with none; per-customer limit blocks a second use; tier-restricted coupon rejects non-members; rules editor validates tiers. Coupon stacking stays off (one code per order).
