@@ -35,3 +35,5 @@ Migration 0024 (rolled-back block as Super Admin, fake storage object): alt text
 Migration 0025 (rolled-back block as Super Admin, fake paid launch order in processing): checklist lists the order line, seal, invoice and Society items; marking Packed is blocked until all are ticked; unticking one blocks again; an unknown item is rejected; once Packed the checklist is locked.
 
 Migration 0026 (rolled-back block as Super Admin, fake storage objects): bad video path, non-YouTube/Vimeo link and short description rejected; video and YouTube link register (link normalised to youtube-nocookie); placing in a slot works, unknown slot rejected; placed media cannot be deleted; a video cannot be used as a product image; anonymous users can read the placed media; delete returns both the video and poster files.
+
+Migration 0027 (rolled-back block as Super Admin): courier link templates must be https and contain {tracking}; reason required; saving and listing couriers; logging a prepared update accepts whatsapp/copy/email only and shows in the order's update list.
