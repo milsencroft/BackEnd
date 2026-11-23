@@ -43,3 +43,5 @@ Migration 0028 (rolled-back block): claim takes due messages once and never twic
 Migration 0029 (rolled-back block): a bad range is rejected; with two paid orders (one with a coupon, one repeat customer), one unpaid order and one refund, gross rises by exactly the paid totals, refunds, repeat customers, coupons and top products show up; anonymous users cannot call it. Applied live as 0029 plus a one-line ORDER BY fix; the repo file holds the final version.
 
 Migration 0030 (rolled-back block): limiter allows N hits per window then blocks, keys are independent, anonymous users cannot call it; newsletter rejects bad emails, treats repeat and differently-cased emails as one row, limits 3 per email per day, anonymous users cannot list subscribers; staff can list and unsubscribe with a reason.
+
+Migration 0031 (rolled-back block): drafts and archived pages are invisible to public_page/public_pages, published ones appear; anonymous users cannot list admin pages; bad slugs and missing reasons are rejected; saves and status changes are audited.
