@@ -49,3 +49,4 @@ Migration 0031 (rolled-back block): drafts and archived pages are invisible to p
 Migration 0032 (rolled-back block, file tests/sql/0032_coupon_rules.sql): discount cap applies; product-restricted coupon discounts only eligible lines and rejects carts with none; per-customer limit blocks a second use; tier-restricted coupon rejects non-members; rules editor validates tiers. Coupon stacking stays off (one code per order).
 - 0033_cart.sql: server cart (add cap, invalid item, guest merge). Verified live, rolled back.
 - 0034_inventory.sql: set/add stock, reason, floor. Verified live, rolled back.
+- 0035_cart_stock_cap.sql: cart capped by available stock, out_of_stock, max_qty. Verified live, rolled back.

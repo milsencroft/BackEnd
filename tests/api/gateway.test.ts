@@ -86,6 +86,16 @@ describe("cart routes", () => {
     expect(t.store.called("cart_add")[1].args.p_customer).toBe("cust-1");
   });
 
+  it("tells the shopper when stock limited the quantity, and refuses out-of-stock items", async () => {
+    const t = setup(); t.store.results.cart_view = { lines: [], count: 3, subtotal_paise: 0 };
+    t.store.results.cart_add = "capped";
+    const res = await t.post("/cart/items", { sku: "MC-KER-001-50ML", qty: 5 }, guest);
+    expect(res.status).toBe(200); expect((await res.json()).capped).toBe(true);
+    t.store.results.cart_add = "out_of_stock";
+    const r2 = await t.post("/cart/items", { sku: "MC-KER-001-50ML", qty: 1 }, guest);
+    expect(r2.status).toBe(409); expect(await r2.json()).toEqual({ error: "out_of_stock" });
+  });
+
   it("rejects malformed lines before the database", async () => {
     const t = setup();
     for (const b of [{ qty: 1 }, { sku: "MC-KER-001-50ML", bundle: "MC-DUO-001", qty: 1 }, { sku: "MC-KER-001-50ML", qty: 0 }, { sku: "MC-KER-001-50ML", qty: 6 }, { sku: "bad sku!", qty: 1 }]) {
