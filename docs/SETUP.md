@@ -40,6 +40,11 @@
 ## Scheduled jobs
 - `expire-stale-orders` (pg_cron, every 2 minutes) cancels unpaid orders after 45 minutes and releases stock.
 
+## Pending list (deliberately left for later)
+- **Courier API integration**: live shipment status from a tracking service (for example Shiprocket, Delhivery or a tracking aggregator), so order pages update on their own. Needs an account with that service and its credentials. Today staff set the status by hand and tracking links come from the Couriers page.
+- **Domain, live Razorpay keys and the end-to-end payment check** (done last, on purpose).
+- Rotate the Razorpay test key that was committed earlier, then update the Supabase secrets and the Vercel public key.
+
 ## Not built yet
-- Notification sender worker (email needs a verified domain/provider; WhatsApp stays manual-approval).
+- Notification sender worker (email needs a verified domain/provider; WhatsApp stays manual-approval). The queue, retry/backoff and admin screen exist; `outbox_claim`, `outbox_mark_sent`, `outbox_mark_failed` and `outbox_mark_delivered` (service role only) are ready for the worker to call.
 - Automated SQL scenario tests (see `tests/sql/README.md`).
