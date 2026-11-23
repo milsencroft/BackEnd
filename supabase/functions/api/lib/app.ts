@@ -29,6 +29,12 @@ export function createApp(d: Deps) {
     return customerId ? { token, userId: user.id, customerId } : null;
   }
 
+  /** Per-customer limit on checkout attempts. If the limiter itself fails, checkout stays available. */
+  async function withinLimit(key: string, limit: number, windowSeconds: number) {
+    try { return (await d.store.rpc<boolean>("rate_limit_hit", { p_key: key, p_limit: limit, p_window_seconds: windowSeconds })) !== false; }
+    catch (e) { log("rate_limit_error", { message: (e as Error).message }); return true; }
+  }
+
   /** Shared tail of both checkouts: create the Razorpay order for the amount THE DATABASE computed. */
   async function pay(row: BeginRow) {
     if (row.r_result !== "ok" || !row.r_order_id || !row.r_order_number || row.r_total_paise == null) {
@@ -63,6 +69,7 @@ export function createApp(d: Deps) {
     const body = await c.req.json().catch(() => null) as Record<string, unknown> | null;
     const address = parseAddress(body?.address);
     if (!body || !isCode(body.launch_code) || !isCode(body.sku) || !address) return c.json({ error: "invalid_request" }, 400);
+    if (!(await withinLimit(`checkout:${me.customerId}`, 10, 60))) return c.json({ error: "rate_limited" }, 429);
     // Only identifiers and the address come from the browser. Price, tax and total are computed in the database.
     const rows = await d.store.rpc<BeginRow[]>("begin_launch_checkout", {
       p_customer: me.customerId, p_launch_code: body.launch_code, p_sku: body.sku, p_address: address,
@@ -80,6 +87,7 @@ export function createApp(d: Deps) {
     const address = parseAddress(body?.address);
     const coupon = typeof body?.coupon === "string" ? body.coupon.trim().slice(0, 30) : null;
     if (!items || !address) return c.json({ error: "invalid_request" }, 400);
+    if (!(await withinLimit(`checkout:${me.customerId}`, 10, 60))) return c.json({ error: "rate_limited" }, 429);
     const rows = await d.store.rpc<BeginRow[]>("begin_retail_checkout", {
       p_customer: me.customerId, p_items: items, p_address: address, p_coupon: coupon || null,
     });
