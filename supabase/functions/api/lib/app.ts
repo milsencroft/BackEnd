@@ -301,7 +301,16 @@ export function createApp(d: Deps) {
     if (!pay || !pay.razorpay_payment_id || !["captured", "refund_pending"].includes(pay.status)) return c.json({ error: "not_refundable" }, 409);
     const prior = await d.store.refundsForPayment(pay.id);
     if (prior.some((r) => r.status === "pending" || r.status === "processed")) return c.json({ error: "refund_already_started" }, 409);
-    const refund = await d.razorpay.refundPayment(pay.razorpay_payment_id, { amountPaise: pay.amount_paise, notes: { reason } });
+    let refund: { id: string };
+    try {
+      refund = await d.razorpay.refundPayment(pay.razorpay_payment_id, { amountPaise: pay.amount_paise, notes: { reason } });
+    } catch (e) {
+      const m = (e as Error).message;
+      log("refund_failed", { order: orderId, message: m });
+      // Razorpay already holds a refund (for example one made in its dashboard): the webhook brings our records up to date.
+      if (/already/i.test(m) && /refund/i.test(m)) return c.json({ error: "already_refunded" }, 409);
+      return c.json({ error: "refund_failed" }, 502);
+    }
     await d.store.rpc("record_refund", { p_payment: pay.id, p_rzp_refund: refund.id, p_amount: pay.amount_paise, p_reason: reason });
     await d.store.audit({ actor: me.customerId, action: "order.refund", entityType: "order", entityId: orderId, reason, after: { refund_id: refund.id, amount_paise: pay.amount_paise } });
     return c.json({ ok: true, razorpay_refund_id: refund.id });
