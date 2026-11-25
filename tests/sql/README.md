@@ -51,3 +51,4 @@ Migration 0032 (rolled-back block, file tests/sql/0032_coupon_rules.sql): discou
 - 0034_inventory.sql: set/add stock, reason, floor. Verified live, rolled back.
 - 0035_cart_stock_cap.sql: cart capped by available stock, out_of_stock, max_qty. Verified live, rolled back.
 - 0037_google_only.sql: password sign-ups refused at the database; forged email_verified ignored. Verified live, rolled back.
+- 0040_stock_moves_on_payment.sql: checkout holds no stock; capture takes it off the shelf; refund (before shipping) and return put it back once; out of stock still refused at checkout. Verified live, rolled back, then applied.
