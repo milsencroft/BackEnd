@@ -102,6 +102,17 @@ describe("POST /admin/orders/:id/refund", () => {
     expect((await t.post(`/admin/orders/${id}/refund`, { reason: "damaged" }, auth)).status).toBe(409);
     expect(t.razorpay.refunds).toHaveLength(0);
   });
+  it("explains a refund Razorpay already holds, and a Razorpay outage, instead of a generic 500", async () => {
+    const t = setup(); t.store.perms = ["payments.refund"];
+    t.store.payment = { id: "p1", razorpay_payment_id: "pay_1", amount_paise: 99900, status: "captured" };
+    t.razorpay.refundError = "razorpay 400: The payment has been fully refunded already";
+    let res = await t.post(`/admin/orders/${id}/refund`, { reason: "x" }, auth);
+    expect(res.status).toBe(409); expect(await res.json()).toEqual({ error: "already_refunded" });
+    t.razorpay.refundError = "razorpay 500: down";
+    res = await t.post(`/admin/orders/${id}/refund`, { reason: "x" }, auth);
+    expect(res.status).toBe(502); expect(await res.json()).toEqual({ error: "refund_failed" });
+    expect(t.store.called("record_refund")).toHaveLength(0);
+  });
   it("refunds in full, records it and writes an audit entry with the actor and reason", async () => {
     const t = setup(); t.store.perms = ["payments.refund"];
     t.store.payment = { id: "p1", razorpay_payment_id: "pay_1", amount_paise: 99900, status: "refund_pending" };

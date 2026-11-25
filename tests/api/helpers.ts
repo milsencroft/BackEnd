@@ -38,12 +38,13 @@ export class FakeStore implements Store {
 
 export class FakeRazorpay implements RazorpayClient {
   orders: unknown[] = []; refunds: { paymentId: string; amountPaise: number }[] = [];
-  failOrder = false; failRefund = false;
+  failOrder = false; failRefund = false; refundError: string | null = null;
   async createOrder(i: { amountPaise: number; receipt: string }) {
     if (this.failOrder) throw new Error("razorpay down");
     this.orders.push(i); return { id: "order_RZP1" };
   }
   async refundPayment(paymentId: string, i: { amountPaise: number }) {
+    if (this.refundError) throw new Error(this.refundError);
     if (this.failRefund) throw new Error("razorpay down");
     this.refunds.push({ paymentId, amountPaise: i.amountPaise }); return { id: "rfnd_1" };
   }
