@@ -22,6 +22,7 @@ export const ADMIN_FUNCTIONS = new Set([
   "admin_summary", "admin_update_media_alt", "admin_update_setting",
   "admin_inventory_list", "admin_set_stock", "admin_adjust_stock",
   "admin_launch_list", "admin_get_setting", "admin_product_names", "admin_tier_numbers",
+  "admin_offer_choices", "admin_list_offers", "admin_save_offer", "admin_set_offer_active",
 ]);
 
 export type FnKind = "public" | "user" | "admin" | null;

@@ -141,7 +141,12 @@ export function createApp(d: Deps) {
     const bundle = typeof b?.bundle === "string" && isCode(b.bundle) ? b.bundle : null;
     return (sku === null) === (bundle === null) ? null : { p_sku: sku, p_bundle: bundle };
   };
-  const view = (o: { customer: string | null; guest: string | null }) => d.store.rpc<Record<string, never>>("cart_view", { p_customer: o.customer, p_guest: o.guest });
+  // The cart also carries the offers the database would apply, so the customer sees the saving before paying. Checkout recomputes it.
+  const view = async (o: { customer: string | null; guest: string | null }) => {
+    const v = await d.store.rpc<Record<string, unknown>>("cart_view", { p_customer: o.customer, p_guest: o.guest });
+    try { return { ...v, ...(await d.store.rpc<Record<string, unknown>>("cart_offer_preview", { p_customer: o.customer, p_guest: o.guest }) ?? {}) }; }
+    catch (e) { log("offer_preview_failed", { message: (e as Error).message }); return v; }
+  };
 
   app.get("/cart", async (c) => {
     const o = await cartOwner(c); if (!o) return c.json({ error: "unauthorized" }, 401);
