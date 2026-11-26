@@ -2,7 +2,7 @@
 // The functions themselves enforce permissions (_require) and row ownership; this list only limits the surface.
 export const PUBLIC_FUNCTIONS = new Set([
   "public_launch_state", "public_media_slots", "public_page", "public_pages", "public_society_tiers",
-  "launch_catalogue", "shop_catalogue", "shop_bundles", "newsletter_subscribe",
+  "launch_catalogue", "shop_catalogue", "shop_bundles", "newsletter_subscribe", "public_offers",
 ]);
 
 export const USER_FUNCTIONS = new Set([
